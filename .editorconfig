@@ -1,0 +1,15 @@
+# https://editorconfig.org/
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.webmanifest]
+indent_size = 2
+
+[*.{json, jsonc}]
+indent_size = 2
