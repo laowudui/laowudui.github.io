@@ -4,8 +4,6 @@ import { updateServiceWorker } from "./buildEnd.ts";
 import { localSearch } from "./search.ts";
 import { navItem, sidebarMulti } from "./sitebars.ts";
 
-import pages from "./pages.js";
-
 export default defineConfig({
     title: "网络日志",
     description: "网络上记录个人思想、经历、见解和各种信息的在线平台",
@@ -14,7 +12,9 @@ export default defineConfig({
     lang: "zh",
     lastUpdated: true,
     head,
-    sitemap: pages.sitemap,
+    sitemap: {
+        hostname: "https://laowudui.github.io",
+    },
     rewrites: {
         "README.md": "index.md",
         "(.*)/README.md": "(.*)/index.md",
@@ -48,7 +48,7 @@ export default defineConfig({
             label: "页面导航",
         },
         editLink: {
-            pattern: pages.editLink.pattern,
+            pattern: "https://github.dev/laowudui/laowudui.github.io/blob/main/docs/:path",
             text: "编辑此页面",
         },
         lastUpdated: {

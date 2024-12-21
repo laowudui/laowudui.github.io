@@ -29,7 +29,7 @@ async function cacheAddAll(resources) {
         await cache.addAll(resources);
         logger("log", "缓存成功!");
     } catch (error) {
-        logger("error", "缓存添加失败", error.message);
+        logger("error", "缓存失败", error.message);
     }
 }
 async function getCachedData(request) {
@@ -46,7 +46,6 @@ async function deleteHistoryCaches() {
         for (const key of keys) {
             if (key !== revision) {
                 await caches.delete(key);
-                logger("debug", "已删除历史缓存", key);
             }
         }
     } catch (error) {
@@ -63,22 +62,19 @@ async function sameOriginCacheFirst(request, target) {
     const cached = await getCachedData(request);
     if (cached) {
         if (cached.ok) {
-            logger("debug", revision, cached.url);
             return cached;
         } else {
-            logger("warn", "缓存失效", cached.url);
+            logger("warn", "无效缓存", cached.url);
         }
     }
     return fetch(request);
 }
 
 self.addEventListener("install", (event) => {
-    logger("log", "正在安装...");
     self.skipWaiting();
     event.waitUntil(cacheAddAll(resources));
 });
 self.addEventListener("activate", (event) => {
-    logger("log", "正在激活...");
     event.waitUntil(Promise.all([
         self.clients.claim(),
         deleteHistoryCaches(),
