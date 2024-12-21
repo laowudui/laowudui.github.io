@@ -1,6 +1,5 @@
 import { defineConfig } from "vitepress";
 import head from "./head.js";
-import { updateServiceWorker } from "./buildEnd.ts";
 import { localSearch } from "./search.ts";
 import { navItem, sidebarMulti } from "./sitebars.ts";
 
@@ -18,9 +17,6 @@ export default defineConfig({
     rewrites: {
         "README.md": "index.md",
         "(.*)/README.md": "(.*)/index.md",
-    },
-    async buildEnd(siteConfig) {
-        updateServiceWorker(siteConfig.outDir);
     },
     vite: {
         publicDir: "../public",
