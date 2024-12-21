@@ -6,6 +6,10 @@ install:
 	@npm $@ -g pnpm
 	@pnpm $@
 
+.PHONY: update
+update:
+	@pnpm $@
+
 .PHONY: build
 build:
 	@pnpm vitepress $@
