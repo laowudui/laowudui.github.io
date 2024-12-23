@@ -27,11 +27,11 @@ const config = {
 };
 // 更新 token
 const searchParams = new URLSearchParams(location.search);
-if (searchParams.has("token")) {
-    const tokenFromParams = searchParams.get("token");
-    if (tokenFromParams) {
-        token.value = tokenFromParams;
-        localStorage.setItem("token", tokenFromParams);
+if (searchParams.has("check")) {
+    if (!token.value) {
+        const tokenFromPrompt = prompt("密钥") || "";
+        token.value = tokenFromPrompt;
+        localStorage.setItem("token", tokenFromPrompt);
     }
 }
 
@@ -161,6 +161,7 @@ if (token.value) {
         border: 1px solid var(--vp-c-border);
         border-radius: 8px;
         transition: border-color 0.25s;
+        font-size: 16px;
 
         &:hover {
             border-color: var(--vp-c-brand-1);
