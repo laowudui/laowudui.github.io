@@ -25,16 +25,12 @@ const config = {
     },
     markContent: /^##\s+(.+)\n((?:^[^#]+\n?)+)/gm,
 };
-// 更新 token
-const searchParams = new URLSearchParams(location.search);
-if (searchParams.has("check")) {
-    if (!token.value) {
-        const tokenFromPrompt = prompt("密钥") || "";
-        token.value = tokenFromPrompt;
-        localStorage.setItem("token", tokenFromPrompt);
-    }
-}
 
+function checkToken(tip: string) {
+    const tokenFromPrompt = prompt(tip, token.value) || token.value;
+    token.value = tokenFromPrompt;
+    localStorage.setItem("token", tokenFromPrompt);
+}
 function isHome() {
     return page.value.filePath == "README.md";
 }
@@ -61,7 +57,8 @@ async function getContent() {
             }
         }
     } catch (error) {
-        console.log(error.message);
+        alert(error.message);
+        checkToken("修改密钥?");
     }
 }
 async function updateContent() {
@@ -93,7 +90,8 @@ async function updateContent() {
             alert("保存成功!");
         }
     } catch (error) {
-        console.log(error.message);
+        alert(error.message);
+        checkToken("修改密钥?");
     }
 }
 function markContent() {
@@ -105,6 +103,13 @@ function markContent() {
     });
 }
 
+
+const searchParams = new URLSearchParams(location.search);
+if (searchParams.has("check")) {
+    if (!token.value) {
+        checkToken("请输入密钥");
+    }
+}
 if (token.value) {
     getContent();
 }
@@ -156,7 +161,6 @@ if (token.value) {
 .form-ui {
 
     textarea,
-    input,
     button {
         border: 1px solid var(--vp-c-border);
         border-radius: 8px;
@@ -187,6 +191,13 @@ if (token.value) {
         &:active {
             background-color: var(--vp-c-bg-alt);
         }
+    }
+}
+
+/* ios */
+@media (max-width: 720px) {
+    textarea {
+        font-size: 16px;
     }
 }
 </style>
