@@ -6,16 +6,26 @@ import { encode, decode } from "js-base64";
 import { date } from "../utils/date.ts"
 
 const { page } = useData();
+const tokenFromStorage = localStorage.getItem("token") || "";
+const searchParams = new URLSearchParams(location.search);
 
-let token = ref(localStorage.getItem("token") || "");
-let sha = ref("");
+let isLogin = ref(false);
+let submit = ref(false);
 let content = ref("");
 let remoteContent = ref("");
 
-const config = {
-    owner: "laowudui",
-    repo: () => isHome() ? "test" : "laowudui.github.io",
-    path: () => isHome() ? date("YYYY/MM/DD.md") : "archives/" + page.value.filePath,
+const runtime = {
+    repo: "laowudui.github.io",
+    user: "laowudui",
+    path: () => {
+        let path = page.value.filePath;
+        if (path == "README.md") {
+            path = date("YYYY/MM/DD.md");
+        }
+        return "archives/" + path;
+    },
+    token: "",
+    sha: "",
     committer: {
         name: "laowudui",
         email: "laowudui@gmail.com",
@@ -26,135 +36,119 @@ const config = {
     markContent: /^##\s+(.+)\n((?:^[^#]+\n?)+)/gm,
 };
 
-function checkToken(tip: string) {
-    const tokenFromPrompt = prompt(tip, token.value) || token.value;
-    token.value = tokenFromPrompt;
-    localStorage.setItem("token", tokenFromPrompt);
-}
-function isHome() {
-    return page.value.filePath == "README.md";
-}
 async function getContent() {
     try {
-        const octokit = new Octokit({
-            auth: token.value,
+        const octokit = getOctokit(runtime.token);
+        const { data } = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+            owner: runtime.user,
+            repo: runtime.repo,
+            path: runtime.path(),
+            headers: runtime.headers,
         });
-        const result = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
-            owner: config.owner,
-            repo: config.repo(),
-            path: config.path(),
-            headers: config.headers,
-        });
-        const { status, data } = result;
-        if (status < 400) {
-            if (Array.isArray(data)) {
-                // 文件夹
-            } else {
-                if (data.type == "file") {
-                    sha.value = data.sha;
-                    remoteContent.value = decode(data.content);
-                }
+        if (Array.isArray(data)) {
+            // 文件夹
+        } else {
+            if (data.type == "file") {
+                runtime.sha = data.sha;
+                remoteContent.value = decode(data.content);
             }
         }
     } catch (error) {
-        alert(error.message);
-        checkToken("修改密钥?");
+        if (error.status !== 404) {
+            alert(error.status);
+        }
     }
 }
 async function updateContent() {
+    submit.value = true;
     let newContent = date("## YYYY-MM-DD HH:mm:ss\n") + content.value;
     if (remoteContent.value.length > 0) {
         newContent = remoteContent.value + "\n\n" + newContent;
     }
     try {
-        const octokit = new Octokit({
-            auth: token.value,
-        });
-        const result = await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-            owner: config.owner,
-            repo: config.repo(),
-            path: config.path(),
+        const octokit = getOctokit(runtime.token);
+        const { data } = await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+            owner: runtime.user,
+            repo: runtime.repo,
+            path: runtime.path(),
             message: "更新笔记",
-            committer: config.committer,
+            committer: runtime.committer,
             content: encode(newContent),
-            sha: sha.value,
-            headers: config.headers,
+            sha: runtime.sha,
+            headers: runtime.headers,
         });
-        const { status, data } = result;
-        if (status < 400) {
-            if (data.content && data.content.sha) {
-                content.value = "";
-                sha.value = data.content?.sha;
-                remoteContent.value = newContent;
-            }
-            alert("保存成功!");
-        }
+        runtime.sha = data.content?.sha || "";
+        content.value = "";
+        remoteContent.value = newContent;
+        alert("保存成功!");
     } catch (error) {
         alert(error.message);
-        checkToken("修改密钥?");
     }
+    submit.value = false;
 }
 function markContent() {
-    return remoteContent.value.replace(config.markContent, (_, title, context) => {
+    return remoteContent.value.replace(runtime.markContent, (_, title, context) => {
         return `<div class="thought">
                     <div class="title">${title}</div>
                     <div class="context">${context}</div>
                 </div>`;
     });
 }
-
-
-const searchParams = new URLSearchParams(location.search);
-if (searchParams.has("check")) {
-    if (!token.value) {
-        checkToken("请输入密钥");
+function getOctokit(token: string) {
+    return new Octokit({
+        auth: token,
+    });
+}
+async function tryStartWith(tokenTried: string) {
+    try {
+        const octokit = getOctokit(tokenTried);
+        const { data: { login } } = await octokit.rest.users.getAuthenticated();
+        if (login == runtime.user) {
+            runtime.token = tokenTried;
+            isLogin.value = true;
+            localStorage.setItem("token", tokenTried);
+            getContent();
+        }
+    } catch (error) {
+        alert(error.message);
+        tryStartWith(prompt("更换密钥?") || tokenTried);
     }
 }
-if (token.value) {
-    getContent();
+
+
+if (tokenFromStorage) {
+    tryStartWith(tokenFromStorage);
+} else {
+    if (searchParams.get("login") == "prompt") {
+        tryStartWith(prompt("密钥") || "");
+    }
 }
 </script>
 
 <template>
-    <div class="archives form-ui">
-        <div v-if="token" class="grid-gap">
-            <textarea v-model="content" placeholder="记录点什么..."></textarea>
-            <div v-if="content" class="flex-end">
-                <button @click="updateContent">提交内容</button>
-            </div>
-            <div class="thoughts grid-gap" v-html="markContent()"></div>
+    <div v-if="isLogin" class="archives form-ui grid-gap">
+        <textarea v-model="content" placeholder="记录点什么..."></textarea>
+        <div v-if="content && !submit" class="flex-end">
+            <button @click="updateContent">提交内容</button>
         </div>
+        <div class="grid-gap" v-html="markContent()"></div>
     </div>
 </template>
 
 <style>
-.flex-end {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.grid-gap {
-    display: grid;
-    gap: 0.5em;
-}
-
 .archives {
+    font-size: 14px;
     padding-top: 24px;
     margin-bottom: -50px;
-}
-
-.thoughts {
-    font-size: 14px;
 
     .thought {
-        background: var(--vp-c-bg-alt);
-        border-left: 1px solid var(--vp-c-border);
-        border-radius: 8px;
         padding: 0.5em;
-    }
+        background: var(--vp-c-bg-alt);
+        border-radius: 8px;
 
-    .title {
-        color: var(--vp-c-text-2);
+        .title {
+            color: var(--vp-c-text-2);
+        }
     }
 }
 
@@ -165,7 +159,6 @@ if (token.value) {
         border: 1px solid var(--vp-c-border);
         border-radius: 8px;
         transition: border-color 0.25s;
-        font-size: 16px;
 
         &:hover {
             border-color: var(--vp-c-brand-1);
@@ -175,10 +168,11 @@ if (token.value) {
     textarea {
         width: 100%;
         padding: 5px;
-        height: 80px;
+        height: 50px;
         resize: none;
 
         &:focus {
+            height: 120px;
             border-color: var(--vp-c-brand-1);
             background-color: var(--vp-c-bg);
         }
@@ -194,10 +188,21 @@ if (token.value) {
     }
 }
 
-/* ios */
 @media (max-width: 720px) {
-    textarea {
-        font-size: 16px;
+    .mac {
+        textarea {
+            font-size: 16px;
+        }
     }
+}
+
+.grid-gap {
+    display: grid;
+    gap: 0.5em;
+}
+
+.flex-end {
+    display: flex;
+    justify-content: flex-end;
 }
 </style>
