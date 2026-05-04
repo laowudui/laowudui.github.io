@@ -1,0 +1,10 @@
+<script>
+    (function (names, readme) {
+        if (names.pop() == readme) {
+            names.pop();
+        }
+        if (names.push(readme) > 1) {
+            location.assign(names.join("/"));
+        }
+    })(location.pathname.split("/"), "README.md");
+</script>
