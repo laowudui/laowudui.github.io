@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络日志</title>
+    <style>
+        @import url("/assets/css/style.css");
+
+        button {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>网络日志</h1>
+        <p>正在加载...</p>
+    </main>
+    <button onclick="trySubmit()" disabled>正在加载...</button>
+    <script>
+        const config = {
+            repo: "laowudui/archives",
+            branch: "main",
+        };
+        const runtime = {
+            token: localStorage.getItem(config.repo) || "",
+            content: "",
+            authed: false,
+        };
+        const Base64 = {
+            encode(string) {
+                return new TextEncoder().encode(string).toBase64();
+            },
+            decode(string) {
+                return new TextDecoder().decode(Uint8Array.fromBase64(string));
+            }
+        };
+        function $(selector) {
+            return document.querySelector(selector);
+        }
+        function formatDate(string) {
+            const date = new Date();
+            const datePad = (number) => {
+                return String(number).padStart(2, "0");
+            };
+            return string
+                .replace(/YYYY/g, date.getFullYear())
+                .replace(/MM/g, datePad(date.getMonth() + 1))
+                .replace(/DD/g, () => {
+                    let day = date.getDate();
+                    if (date.getHours() < 5) {
+                        day--;
+                    }
+                    return datePad(day);
+                })
+                .replace(/HH/g, datePad(date.getHours()))
+                .replace(/mm/g, datePad(date.getMinutes()))
+                .replace(/ss/g, datePad(date.getSeconds()));
+        }
+        async function request(method, path, data = {}) {
+            if (!runtime.token) {
+                throw new Error("未检测到访问令牌!");
+            }
+            const init = {
+                method,
+                headers: new Headers({
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2026-03-10",
+                    "Authorization": `Bearer ${runtime.token}`,
+                }),
+                cache: "no-cache",
+            };
+            if (Object.keys(data).length > 0) {
+                init.body = JSON.stringify(data);
+                init.headers.set("Content-Type", "application/json");
+            }
+            const res = await fetch("https://api.github.com" + path, init);
+            if (res.ok) {
+                return await res.json();
+            }
+            throw new Error(String(res.status));
+        }
+        function setStatus(message, enabled = false) {
+            const element = $("button");
+            element.innerText = message;
+            element.disabled = !enabled;
+        }
+        function setFocus(selector, clean = false) {
+            const element = $(selector);
+            if (element) {
+                if (clean) {
+                    element.value = "";
+                }
+                element.focus();
+            }
+        }
+        async function tryAuth() {
+            try {
+                setStatus("开始认证...");
+                await request("GET", "/user");
+                setStatus("认证成功!");
+                runtime.authed = true;
+                localStorage.setItem(config.repo, runtime.token);
+                $("main").innerHTML = `<textarea name="content" placeholder="记录一些事件、感悟、思考..."></textarea>`;
+                setFocus("textarea");
+            } catch (e) {
+                setStatus(`认证失败: ${e.message}`);
+                $("main").innerHTML = `<input name="token" type="password" placeholder="请输入访问令牌...">`;
+                setFocus("input", true);
+            }
+        }
+        async function trySubmit() {
+            if (!runtime.authed) {
+                return await tryAuth();
+            }
+            if (!runtime.content) {
+                return setStatus("请先输入内容!");
+            }
+            const path = `/repos/${config.repo}/contents/${formatDate("YYYY/YYYY-MM/YYYY-MM-DD.md")}`;
+            let content = "";
+            let sha = null;
+            try {
+                setStatus("获取原有内容...");
+                const res = await request("GET", `${path}?ref=${config.branch}`);
+                sha = res.sha;
+                content = Base64.decode(res.content) + "\n";
+            } catch (e) { }
+            try {
+                setStatus("保存完整内容...");
+                await request("PUT", path, {
+                    message: `更新日志[${navigator.platform}]`,
+                    content: Base64.encode(content + `## ${formatDate("HH:mm:ss")}\n${runtime.content}\n`),
+                    sha,
+                    branch: config.branch,
+                });
+                setStatus("保存成功!");
+                setFocus("textarea", true);
+            } catch (e) {
+                setStatus(`保存失败: ${e.message}`);
+            }
+        }
+        tryAuth();
+        document.addEventListener("input", ({ target }) => {
+            const value = target?.value?.trim();
+            const name = target?.name;
+            if (name) {
+                runtime[name] = value;
+            }
+            setStatus("保存", value.length > 0);
+        });
+    </script>
+</body>
+
+</html>

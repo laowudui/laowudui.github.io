@@ -1,0 +1,59 @@
+:root {
+    --border-color: rgba(118, 118, 118, 0.3);
+    --background-color: rgba(239, 239, 239, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-size: 16px;
+}
+
+h1,
+h2 {
+    border-bottom: 1px solid var(--border-color);
+}
+
+pre,
+input,
+textarea {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+}
+
+pre {
+    padding: 1rem;
+    overflow: auto;
+}
+
+code {
+    tab-size: 4;
+    font-size: 0.85rem;
+}
+
+textarea,
+input {
+    font-size: 1rem;
+    width: 100%;
+    padding: 0.8rem;
+    outline-color: var(--border-color);
+}
+
+textarea {
+    height: 300px;
+    resize: none;
+    border-radius: 0.5rem;
+}
+
+main {
+    margin: 1rem auto;
+    padding: 1rem;
+    max-width: 1024px;
+}
+
+button {
+    padding: 0.2rem 0.4rem;
+}
