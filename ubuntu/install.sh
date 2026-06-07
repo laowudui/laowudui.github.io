@@ -71,12 +71,15 @@ sudo apt purge -y \
     resources \
     gnome-calculator
 
-echo "正在清理冗余依赖..."
+echo "正在系统清理..."
+sudo apt clean
 sudo apt autoremove -y --purge
 
 echo "正在安装软件[补充]..."
 # tailscale
-curl -fsSL https://tailscale.com/install.sh | sh
+if ! command -v tailscale >/dev/null 2>&1; then
+    curl -fsSL https://tailscale.com/install.sh | sh
+fi
 
 echo "正在配置系统软件..."
 # server
@@ -163,8 +166,9 @@ node_init() {
     mkdir -p "$NODE_HOME"
     curl -#fSL "$mirror/v$version/node-v$version-linux-x64.tar.xz" | tar --strip-components=1 -xJC "$NODE_HOME"
 
-    echo "正在安装[pnpm]..."
+    echo "正在安装[工具]..."
     npm i -g pnpm
+    npm i -g opencode-ai
 }
 EOF
 install -Dm 664 /dev/stdin ~/.npmrc <<'EOF'
@@ -213,7 +217,7 @@ go_init() {
 
     echo "正在安装[go]..."
     mkdir -p "$GO_HOME"
-    curl -#fSL "$MIRROR/go$VERSION.linux-amd64.tar.gz" | tar --strip-components=1 -xzC "$GO_HOME"
+    curl -#fSL "$mirror/go$version.linux-amd64.tar.gz" | tar --strip-components=1 -xzC "$GO_HOME"
 }
 EOF
 install -Dm 664 /dev/stdin ~/.config/go/env <<'EOF'
